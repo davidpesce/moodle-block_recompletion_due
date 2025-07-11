@@ -22,7 +22,11 @@
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-$string['blocktitle'] = 'Block title';
-$string['showdummy'] = 'Enable something (not used)';
+$string['blocktitle'] = 'Training Report';
+$string['daysremaining'] = 'Days Remaining';
+$string['duedate'] = 'Due Date';
 $string['pluginname'] = 'Recompletion Due Items';
-$string['nothingdue'] = 'You have no overdue items.';
+$string['nooverdue'] = 'You have no overdue items.';
+$string['noupcoming'] = 'You have no upcoming items.';
+$string['overduetabletitle'] = 'Overdue Training';
+$string['upcomingtabletitle'] = 'Training Coming Due';

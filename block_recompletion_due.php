@@ -48,140 +48,109 @@ class block_recompletion_due extends block_base {
             return $this->content;
         }
 
-        $this->content = new stdClass;
+        $this->content = new stdClass();
         $this->content->text = '';
-
         $userid = $USER->id;
-        $now = time();
-        $sixmonths = $now + (86400 * 30 * 6); // Approximate 6 months
 
         $sql = "
-            WITH valid_recompletion AS (
-                SELECT course, CAST(value AS UNSIGNED) AS recompletionduration
-                FROM {local_recompletion_config}
-                WHERE name = 'recompletionduration' AND CAST(value AS UNSIGNED) > 0
-            ),
-            latest_cc AS (
-                SELECT course, userid, MAX(timecompleted) AS timecompleted
-                FROM {course_completions}
-                WHERE userid = :userid
-                GROUP BY course, userid
-            ),
-            latest_rcc AS (
-                SELECT course, userid, MAX(timecompleted) AS timecompleted
-                FROM {local_recompletion_cc}
-                WHERE userid = :userid2
-                GROUP BY course, userid
-            ),
-            latest_enrol AS (
-                SELECT e.courseid AS course, ue.userid, MAX(ue.timecreated) AS timecreated
-                FROM {user_enrolments} ue
-                JOIN {enrol} e ON ue.enrolid = e.id
-                WHERE ue.userid = :userid3 AND ue.status = 0 AND e.status = 0
-                  AND (ue.timeend = 0 OR ue.timeend > UNIX_TIMESTAMP())
-                GROUP BY e.courseid, ue.userid
-            )
-            SELECT 
-                c.id AS courseid,
-                c.fullname,
-                le.timecreated AS enrol_time,
-                cc.timecompleted AS completed_time,
-                rcc.timecompleted AS last_recompletion_time,
-                rc.recompletionduration AS recompletion_interval_seconds,
+            SELECT
+            c.id AS courseid,
+            c.fullname AS course,
+            CASE
+                WHEN GREATEST(COALESCE(cc.timecompleted, 0), COALESCE(rcc.timecompleted, 0)) != 0
+                THEN FROM_UNIXTIME(GREATEST(COALESCE(cc.timecompleted, 0), COALESCE(rcc.timecompleted, 0)) + CAST(rcfg.value AS UNSIGNED) + 5011200, '%Y-%m-%d')
+                ELSE FROM_UNIXTIME(ue.timecreated + 5011200, '%Y-%m-%d')
+            END AS next_due,
+            CASE
+                WHEN GREATEST(COALESCE(cc.timecompleted, 0), COALESCE(rcc.timecompleted, 0)) = 0
+                THEN DATEDIFF(FROM_UNIXTIME(ue.timecreated + 5011200, '%Y-%m-%d'), NOW())
+                ELSE DATEDIFF(
+                FROM_UNIXTIME(GREATEST(COALESCE(cc.timecompleted, 0), COALESCE(rcc.timecompleted, 0)) + CAST(rcfg.value AS UNSIGNED) + 5011200, '%Y-%m-%d'),
+                NOW()
+                )
+            END AS days_til_due
 
-                CASE
-                    WHEN cc.timecompleted IS NULL AND rcc.timecompleted IS NULL THEN le.timecreated
-                    ELSE GREATEST(
-                        COALESCE(cc.timecompleted, 0), 
-                        COALESCE(rcc.timecompleted, 0),
-                        le.timecreated
-                    )
-                END AS base_ts,
-
-                CASE
-                    WHEN cc.timecompleted IS NULL AND rcc.timecompleted IS NULL THEN le.timecreated + 604800
-                    ELSE GREATEST(
-                        COALESCE(cc.timecompleted, 0), 
-                        COALESCE(rcc.timecompleted, 0),
-                        le.timecreated
-                    ) + rc.recompletionduration
-                END AS next_due_ts,
-
-                FROM_UNIXTIME(
-                    CASE
-                        WHEN cc.timecompleted IS NULL AND rcc.timecompleted IS NULL THEN le.timecreated + 604800
-                        ELSE GREATEST(
-                            COALESCE(cc.timecompleted, 0), 
-                            COALESCE(rcc.timecompleted, 0),
-                            le.timecreated
-                        ) + rc.recompletionduration
-                    END
-                ) AS next_due
-
-            FROM latest_enrol le
-            JOIN {course} c ON c.id = le.course AND c.visible = 1
-            JOIN valid_recompletion rc ON rc.course = c.id
-            LEFT JOIN latest_cc cc ON cc.course = c.id AND cc.userid = le.userid
-            LEFT JOIN latest_rcc rcc ON rcc.course = c.id AND rcc.userid = le.userid
-            ORDER BY next_due_ts ASC
+            FROM mdl_course c
+            JOIN mdl_course_categories ccat ON c.category = ccat.id
+            JOIN mdl_context ctx ON c.id = ctx.instanceid AND ctx.contextlevel = 50
+            JOIN mdl_role_assignments ra ON ctx.id = ra.contextid
+            JOIN mdl_enrol e ON c.id = e.courseid AND e.id = ra.itemid AND e.status = 0
+            JOIN mdl_user u ON ra.userid = u.id
+            JOIN mdl_user_enrolments ue ON e.id = ue.enrolid AND u.id = ue.userid AND ue.status = 0
+            LEFT JOIN mdl_course_completions cc ON c.id = cc.course AND u.id = cc.userid
+            LEFT JOIN (
+            SELECT userid, course, MAX(timecompleted) AS timecompleted
+            FROM mdl_local_recompletion_cc
+            GROUP BY userid, course
+            ) AS rcc ON c.id = rcc.course AND u.id = rcc.userid
+            LEFT JOIN mdl_local_recompletion_config rcfg ON c.id = rcfg.course AND rcfg.name = 'recompletionduration'
+            WHERE u.suspended = 0
+            AND u.id = :userid
+            AND c.category != 3
+            AND rcfg.value IS NOT NULL AND CAST(rcfg.value AS UNSIGNED) > 0
         ";
 
-        $params = [
-            'userid' => $userid,
-            'userid2' => $userid,
-            'userid3' => $userid
+        $records = $DB->get_records_sql($sql, ['userid' => $userid]);
+
+        $overdue = array_filter($records, fn($r) => $r->days_til_due < 0);
+        $upcoming = array_filter($records, fn($r) => $r->days_til_due >= 0 && $r->days_til_due <= 200);
+
+        $output = '';
+
+
+        // Overdue Items
+        $output .= html_writer::tag('h4', get_string('overduetabletitle', 'block_recompletion_due'));
+        $overduetable = new html_table();
+        $overduetable->head = [
+            get_string('course'),
+            get_string('duedate', 'block_recompletion_due'),
+            get_string('daysremaining', 'block_recompletion_due')
         ];
-
-        $records = $DB->get_records_sql($sql, $params);
-
-        $overdue = [];
-        $upcoming = [];
-
-        foreach ($records as $record) {
-            if ($record->next_due_ts < $now) {
-                $overdue[] = $record;
-            } elseif ($record->next_due_ts <= $sixmonths) {
-                $upcoming[] = $record;
-            }
-        }
-
-        if (empty($overdue) && empty($upcoming)) {
-            $this->content->text .= get_string('nothingdue', 'block_recompletion_due');
-            return $this->content;
-        }
-
-        $make_table = function($title, $items) {
-            $output = html_writer::tag('h4', $title);
-            $output .= html_writer::start_tag('table', ['class' => 'generaltable']);
-            $output .= html_writer::start_tag('thead');
-            $output .= html_writer::tag('tr',
-                html_writer::tag('th', 'Course') .
-                html_writer::tag('th', 'Due Date')
-            );
-            $output .= html_writer::end_tag('thead');
-            $output .= html_writer::start_tag('tbody');
-            foreach ($items as $item) {
-                $url = new moodle_url('/course/view.php', ['id' => $item->courseid]);
-                $link = html_writer::link($url, format_string($item->fullname));
-                $due = userdate($item->next_due_ts);
-                $output .= html_writer::tag('tr',
-                    html_writer::tag('td', $link) .
-                    html_writer::tag('td', $due)
-                );
-            }
-            $output .= html_writer::end_tag('tbody');
-            $output .= html_writer::end_tag('table');
-            return $output;
-        };
-
         if (!empty($overdue)) {
-            $this->content->text .= $make_table('Overdue Training', $overdue);
+            foreach ($overdue as $item) {
+                $courselink = html_writer::link(
+                    new moodle_url('/course/view.php', ['id' => $item->courseid]),
+                    format_string($item->course)
+                );
+                $overduetable->data[] = [$courselink, $item->next_due, $item->days_til_due];
+            }
+        } else {
+            $overduetable->data[] = [
+                html_writer::span(get_string('nooverdue', 'block_recompletion_due'), 'nooverdue-message'),
+                '',
+                ''
+            ];
         }
+        $output .= html_writer::table($overduetable);
 
+        // Upcoming Items
+        $output .= html_writer::tag('h4', get_string('upcomingtabletitle', 'block_recompletion_due'));
+        $upcomingtable = new html_table();
+        $upcomingtable->head = [
+            get_string('course'),
+            get_string('duedate', 'block_recompletion_due'),
+            get_string('daysremaining', 'block_recompletion_due')
+        ];
         if (!empty($upcoming)) {
-            $this->content->text .= $make_table('Training Due Within 6 Months', $upcoming);
+            foreach ($upcoming as $item) {
+                $courselink = html_writer::link(
+                    new moodle_url('/course/view.php', ['id' => $item->courseid]),
+                    format_string($item->course)
+                );
+                $upcomingtable->data[] = [$courselink, $item->next_due, $item->days_til_due];
+            }
+        } else {
+            $upcomingtable->data[] = [
+                html_writer::span(get_string('noupcoming', 'block_recompletion_due'), 'noupcoming-message'),
+                '',
+                ''
+            ];
         }
+        $output .= html_writer::table($upcomingtable);
 
+        $this->content->text = $output;
+
+        $this->content->footer = '';
         return $this->content;
     }
 
