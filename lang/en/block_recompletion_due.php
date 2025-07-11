@@ -22,11 +22,17 @@
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-$string['blocktitle'] = 'Training Report';
+$string['blocktitle'] = 'Block Title';
 $string['daysremaining'] = 'Days Remaining';
 $string['duedate'] = 'Due Date';
 $string['pluginname'] = 'Recompletion Due Items';
+$string['newhirewindow'] = 'New Hire Window (seconds)';
+$string['newhirewindow_help'] = 'Number of seconds to add for the new hire window.';
 $string['nooverdue'] = 'You have no overdue items.';
 $string['noupcoming'] = 'You have no upcoming items.';
 $string['overduetabletitle'] = 'Overdue Training';
+$string['recompletionwindow'] = 'Recompletion Window (seconds)';
+$string['recompletionwindow_help'] = 'Number of seconds to add for the recompletion window.';
 $string['upcomingtabletitle'] = 'Training Coming Due';
+$string['upcomingwindow'] = 'Upcoming Window (days)';
+$string['upcomingwindow_help'] = 'Number of days to look ahead for upcoming training.';

@@ -52,20 +52,29 @@ class block_recompletion_due extends block_base {
         $this->content->text = '';
         $userid = $USER->id;
 
+        // Get newhirewindow from instance config, fallback to default if not set.
+        $newhirewindow = isset($this->config->newhirewindow) && is_numeric($this->config->newhirewindow)
+            ? (int)$this->config->newhirewindow
+            : 5011200;
+
+        $recompletionwindow = isset($this->config->recompletionwindow) && is_numeric($this->config->recompletionwindow)
+            ? (int)$this->config->recompletionwindow
+            : 5011200;
+
         $sql = "
             SELECT
             c.id AS courseid,
             c.fullname AS course,
             CASE
                 WHEN GREATEST(COALESCE(cc.timecompleted, 0), COALESCE(rcc.timecompleted, 0)) != 0
-                THEN FROM_UNIXTIME(GREATEST(COALESCE(cc.timecompleted, 0), COALESCE(rcc.timecompleted, 0)) + CAST(rcfg.value AS UNSIGNED) + 5011200, '%Y-%m-%d')
-                ELSE FROM_UNIXTIME(ue.timecreated + 5011200, '%Y-%m-%d')
+                THEN FROM_UNIXTIME(GREATEST(COALESCE(cc.timecompleted, 0), COALESCE(rcc.timecompleted, 0)) + CAST(rcfg.value AS UNSIGNED) + $recompletionwindow, '%Y-%m-%d')
+                ELSE FROM_UNIXTIME(ue.timecreated + $newhirewindow, '%Y-%m-%d')
             END AS next_due,
             CASE
                 WHEN GREATEST(COALESCE(cc.timecompleted, 0), COALESCE(rcc.timecompleted, 0)) = 0
-                THEN DATEDIFF(FROM_UNIXTIME(ue.timecreated + 5011200, '%Y-%m-%d'), NOW())
+                THEN DATEDIFF(FROM_UNIXTIME(ue.timecreated + $newhirewindow, '%Y-%m-%d'), NOW())
                 ELSE DATEDIFF(
-                FROM_UNIXTIME(GREATEST(COALESCE(cc.timecompleted, 0), COALESCE(rcc.timecompleted, 0)) + CAST(rcfg.value AS UNSIGNED) + 5011200, '%Y-%m-%d'),
+                FROM_UNIXTIME(GREATEST(COALESCE(cc.timecompleted, 0), COALESCE(rcc.timecompleted, 0)) + CAST(rcfg.value AS UNSIGNED) + $recompletionwindow, '%Y-%m-%d'),
                 NOW()
                 )
             END AS days_til_due
@@ -93,7 +102,10 @@ class block_recompletion_due extends block_base {
         $records = $DB->get_records_sql($sql, ['userid' => $userid]);
 
         $overdue = array_filter($records, fn($r) => $r->days_til_due < 0);
-        $upcoming = array_filter($records, fn($r) => $r->days_til_due >= 0 && $r->days_til_due <= 200);
+        $upcomingwindow = isset($this->config->upcomingwindow) && is_numeric($this->config->upcomingwindow)
+            ? (int)$this->config->upcomingwindow
+            : 178;
+        $upcoming = array_filter($records, fn($r) => $r->days_til_due >= 0 && $r->days_til_due <= $upcomingwindow);
 
         $output = '';
 
