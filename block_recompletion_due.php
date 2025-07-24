@@ -95,7 +95,7 @@ class block_recompletion_due extends block_base {
             LEFT JOIN mdl_local_recompletion_config rcfg ON c.id = rcfg.course AND rcfg.name = 'recompletionduration'
             WHERE u.suspended = 0
             AND u.id = :userid
-            AND c.category != 3
+            AND c.visible = 1
             AND rcfg.value IS NOT NULL AND CAST(rcfg.value AS UNSIGNED) > 0
         ";
 
