@@ -72,21 +72,33 @@ class block_recompletion_due extends block_base {
             ? (int)$this->config->recompletionwindow
             : 5011200;
 
+        // Prepare newhirecourses for SQL IN clause
+        $newhirecoursesql = '';
+        if (!empty($newhirecourses)) {
+            $newhirecoursesql = implode(',', array_map('intval', $newhirecourses));
+        } else {
+            $newhirecoursesql = 'NULL'; // will never match
+        }
+
         $sql = "
             SELECT
             c.id AS courseid,
             c.fullname AS course,
             CASE
-                WHEN GREATEST(COALESCE(cc.timecompleted, 0), COALESCE(rcc.timecompleted, 0)) != 0
-                THEN FROM_UNIXTIME(GREATEST(COALESCE(cc.timecompleted, 0), COALESCE(rcc.timecompleted, 0)) + CAST(rcfg.value AS UNSIGNED) + $recompletionwindow, '%Y-%m-%d')
-                ELSE FROM_UNIXTIME(ue.timecreated + $newhirewindow, '%Y-%m-%d')
+                WHEN rcc.timecompleted IS NULL AND c.id IN ($newhirecoursesql)
+                    THEN FROM_UNIXTIME(ue.timecreated + $newhirewindow, '%Y-%m-%d')
+                WHEN rcc.timecompleted IS NULL
+                    THEN FROM_UNIXTIME(ue.timecreated + $initialtrainingwindow, '%Y-%m-%d')
+                ELSE FROM_UNIXTIME(GREATEST(COALESCE(cc.timecompleted, 0), COALESCE(rcc.timecompleted, 0)) + CAST(rcfg.value AS UNSIGNED) + $recompletionwindow, '%Y-%m-%d')
             END AS next_due,
             CASE
-                WHEN GREATEST(COALESCE(cc.timecompleted, 0), COALESCE(rcc.timecompleted, 0)) = 0
-                THEN DATEDIFF(FROM_UNIXTIME(ue.timecreated + $newhirewindow, '%Y-%m-%d'), NOW())
+                WHEN rcc.timecompleted IS NULL AND c.id IN ($newhirecoursesql)
+                    THEN DATEDIFF(FROM_UNIXTIME(ue.timecreated + $newhirewindow, '%Y-%m-%d'), NOW())
+                WHEN rcc.timecompleted IS NULL
+                    THEN DATEDIFF(FROM_UNIXTIME(ue.timecreated + $initialtrainingwindow, '%Y-%m-%d'), NOW())
                 ELSE DATEDIFF(
-                FROM_UNIXTIME(GREATEST(COALESCE(cc.timecompleted, 0), COALESCE(rcc.timecompleted, 0)) + CAST(rcfg.value AS UNSIGNED) + $recompletionwindow, '%Y-%m-%d'),
-                NOW()
+                    FROM_UNIXTIME(GREATEST(COALESCE(cc.timecompleted, 0), COALESCE(rcc.timecompleted, 0)) + CAST(rcfg.value AS UNSIGNED) + $recompletionwindow, '%Y-%m-%d'),
+                    NOW()
                 )
             END AS days_til_due
 

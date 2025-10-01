@@ -39,6 +39,7 @@ class block_recompletion_due_edit_form extends block_edit_form {
      * @return void
      */
     protected function specific_definition($mform) {
+    global $DB;
 
         // Section heading.
         $mform->addElement('header', 'configheader', get_string('blocksettings', 'block'));
@@ -54,17 +55,29 @@ class block_recompletion_due_edit_form extends block_edit_form {
         $mform->setDefault('config_upcomingwindow', 178);
         $mform->addHelpButton('config_upcomingwindow', 'upcomingwindow', 'block_recompletion_due');
 
-        // Recompletion window field (seconds).
-        $mform->addElement('text', 'config_recompletionwindow', get_string('recompletionwindow', 'block_recompletion_due'));
-        $mform->setType('config_recompletionwindow', PARAM_INT);
-        $mform->setDefault('config_recompletionwindow', 5011200);
-        $mform->addHelpButton('config_recompletionwindow', 'recompletionwindow', 'block_recompletion_due');
-
+        // New hire courses multi-select.
+        $courses = $DB->get_records_menu('course', null, 'fullname', 'id, fullname');
+        $mform->addElement('autocomplete', 'config_newhirecourses', get_string('newhirecourses', 'block_recompletion_due'), $courses, ['multiple' => true]);
+        $mform->setType('config_newhirecourses', PARAM_INT);
+        $mform->addHelpButton('config_newhirecourses', 'newhirecourses', 'block_recompletion_due');
 
         // New hire window field (seconds).
         $mform->addElement('text', 'config_newhirewindow', get_string('newhirewindow', 'block_recompletion_due'));
         $mform->setType('config_newhirewindow', PARAM_INT);
         $mform->setDefault('config_newhirewindow', 5011200);
         $mform->addHelpButton('config_newhirewindow', 'newhirewindow', 'block_recompletion_due');
+
+        // Initial training window field (seconds).
+        $mform->addElement('text', 'config_initialtrainingwindow', get_string('initialtrainingwindow', 'block_recompletion_due'));
+        $mform->setType('config_initialtrainingwindow', PARAM_INT);
+        $mform->setDefault('config_initialtrainingwindow', 30);
+        $mform->addHelpButton('config_initialtrainingwindow', 'initialtrainingwindow', 'block_recompletion_due');
+
+        // Recompletion window field (seconds).
+        $mform->addElement('text', 'config_recompletionwindow', get_string('recompletionwindow', 'block_recompletion_due'));
+        $mform->setType('config_recompletionwindow', PARAM_INT);
+        $mform->setDefault('config_recompletionwindow', 5011200);
+        $mform->addHelpButton('config_recompletionwindow', 'recompletionwindow', 'block_recompletion_due');
+
     }
 }
