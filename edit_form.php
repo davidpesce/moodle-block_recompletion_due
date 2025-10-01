@@ -64,7 +64,7 @@ class block_recompletion_due_edit_form extends block_edit_form {
         // New hire window field (seconds).
         $mform->addElement('text', 'config_newhirewindow', get_string('newhirewindow', 'block_recompletion_due'));
         $mform->setType('config_newhirewindow', PARAM_INT);
-        $mform->setDefault('config_newhirewindow', 5011200);
+        $mform->setDefault('config_newhirewindow', 7);
         $mform->addHelpButton('config_newhirewindow', 'newhirewindow', 'block_recompletion_due');
 
         // Initial training window field (seconds).
@@ -76,7 +76,7 @@ class block_recompletion_due_edit_form extends block_edit_form {
         // Recompletion window field (seconds).
         $mform->addElement('text', 'config_recompletionwindow', get_string('recompletionwindow', 'block_recompletion_due'));
         $mform->setType('config_recompletionwindow', PARAM_INT);
-        $mform->setDefault('config_recompletionwindow', 5011200);
+        $mform->setDefault('config_recompletionwindow', 60);
         $mform->addHelpButton('config_recompletionwindow', 'recompletionwindow', 'block_recompletion_due');
 
     }

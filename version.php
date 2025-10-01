@@ -25,7 +25,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'block_recompletion_due';
-$plugin->version = 2025100103;
+$plugin->version = 2025100106;
 $plugin->requires = 2022112800; // Moodle 4.1+
 $plugin->dependencies = [
     'local_recompletion' => 2023112707

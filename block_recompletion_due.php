@@ -128,10 +128,14 @@ class block_recompletion_due extends block_base {
         $upcomingwindow = isset($this->config->upcomingwindow) && is_numeric($this->config->upcomingwindow)
             ? (int)$this->config->upcomingwindow
             : 178;
+
         $upcoming = array_filter($records, fn($r) => $r->days_til_due >= 0 && $r->days_til_due <= $upcomingwindow);
+        // Sort upcoming by days_til_due ascending
+        usort($upcoming, function($a, $b) {
+            return $a->days_til_due <=> $b->days_til_due;
+        });
 
         $output = '';
-
 
         // Overdue Items
         $output .= html_writer::tag('h4', get_string('overduetabletitle', 'block_recompletion_due'));
