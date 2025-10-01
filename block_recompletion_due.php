@@ -52,25 +52,25 @@ class block_recompletion_due extends block_base {
         $this->content->text = '';
         $userid = $USER->id;
 
-        // Get newhirewindow from instance config, fallback to default if not set.
+        // Get newhirewindow from instance config (days), fallback to default if not set, convert to seconds.
         $newhirewindow = isset($this->config->newhirewindow) && is_numeric($this->config->newhirewindow)
-            ? (int)$this->config->newhirewindow
-            : 5011200;
+            ? ((int)$this->config->newhirewindow * 86400)
+            : (7 * 86400); // 7 days default
 
         // Need new hire course list.
         $newhirecourses = isset($this->config->newhirecourses) && is_array($this->config->newhirecourses)
             ? $this->config->newhirecourses
             : [];
 
-        // Need a window for initialtrainingwindow (days).
+        // Need a window for initialtrainingwindow (days), convert to seconds.
         $initialtrainingwindow = isset($this->config->initialtrainingwindow) && is_numeric($this->config->initialtrainingwindow)
-            ? (int)$this->config->initialtrainingwindow
-            : 30;
+            ? ((int)$this->config->initialtrainingwindow * 86400)
+            : (30 * 86400); // 30 days default
 
-        // A window for courses that have already been completed (seconds).
+        // A window for courses that have already been completed (days), convert to seconds.
         $recompletionwindow = isset($this->config->recompletionwindow) && is_numeric($this->config->recompletionwindow)
-            ? (int)$this->config->recompletionwindow
-            : 5011200;
+            ? ((int)$this->config->recompletionwindow * 86400)
+            : (305 * 86400); // 305 days default
 
         // Prepare newhirecourses for SQL IN clause
         $newhirecoursesql = '';
@@ -85,16 +85,16 @@ class block_recompletion_due extends block_base {
             c.id AS courseid,
             c.fullname AS course,
             CASE
-                WHEN rcc.timecompleted IS NULL AND c.id IN ($newhirecoursesql)
+                WHEN rcc.timecompleted IS NULL AND cc.timecompleted IS NULL AND c.id IN ($newhirecoursesql)
                     THEN FROM_UNIXTIME(ue.timecreated + $newhirewindow, '%Y-%m-%d')
-                WHEN rcc.timecompleted IS NULL
+                WHEN rcc.timecompleted IS NULL AND cc.timecompleted IS NULL
                     THEN FROM_UNIXTIME(ue.timecreated + $initialtrainingwindow, '%Y-%m-%d')
                 ELSE FROM_UNIXTIME(GREATEST(COALESCE(cc.timecompleted, 0), COALESCE(rcc.timecompleted, 0)) + CAST(rcfg.value AS UNSIGNED) + $recompletionwindow, '%Y-%m-%d')
             END AS next_due,
             CASE
-                WHEN rcc.timecompleted IS NULL AND c.id IN ($newhirecoursesql)
+                WHEN rcc.timecompleted IS NULL AND cc.timecompleted IS NULL AND c.id IN ($newhirecoursesql)
                     THEN DATEDIFF(FROM_UNIXTIME(ue.timecreated + $newhirewindow, '%Y-%m-%d'), NOW())
-                WHEN rcc.timecompleted IS NULL
+                WHEN rcc.timecompleted IS NULL AND cc.timecompleted IS NULL
                     THEN DATEDIFF(FROM_UNIXTIME(ue.timecreated + $initialtrainingwindow, '%Y-%m-%d'), NOW())
                 ELSE DATEDIFF(
                     FROM_UNIXTIME(GREATEST(COALESCE(cc.timecompleted, 0), COALESCE(rcc.timecompleted, 0)) + CAST(rcfg.value AS UNSIGNED) + $recompletionwindow, '%Y-%m-%d'),
