@@ -57,6 +57,17 @@ class block_recompletion_due extends block_base {
             ? (int)$this->config->newhirewindow
             : 5011200;
 
+        // Need new hire course list.
+        $newhirecourses = isset($this->config->newhirecourses) && is_array($this->config->newhirecourses)
+            ? $this->config->newhirecourses
+            : [];
+
+        // Need a window for initialtrainingwindow (days).
+        $initialtrainingwindow = isset($this->config->initialtrainingwindow) && is_numeric($this->config->initialtrainingwindow)
+            ? (int)$this->config->initialtrainingwindow
+            : 30;
+
+        // A window for courses that have already been completed (seconds).
         $recompletionwindow = isset($this->config->recompletionwindow) && is_numeric($this->config->recompletionwindow)
             ? (int)$this->config->recompletionwindow
             : 5011200;
