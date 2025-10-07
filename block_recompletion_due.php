@@ -119,7 +119,10 @@ class block_recompletion_due extends block_base {
             WHERE u.suspended = 0
             AND u.id = :userid
             AND c.visible = 1
-            AND rcfg.value IS NOT NULL AND CAST(rcfg.value AS UNSIGNED) > 0
+            AND (
+                (rcc.timecompleted IS NULL AND cc.timecompleted IS NULL) OR
+                (rcfg.value IS NOT NULL AND CAST(rcfg.value AS UNSIGNED) > 0)
+            )
         ";
 
         $records = $DB->get_records_sql($sql, ['userid' => $userid]);
