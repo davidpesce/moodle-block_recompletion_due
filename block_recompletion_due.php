@@ -93,12 +93,12 @@ class block_recompletion_due extends block_base {
             END AS next_due,
             CASE
                 WHEN rcc.timecompleted IS NULL AND cc.timecompleted IS NULL AND c.id IN ($newhirecoursesql)
-                    THEN DATEDIFF(FROM_UNIXTIME(ue.timecreated + $newhirewindow, '%Y-%m-%d'), NOW()) +1
+                    THEN DATEDIFF(FROM_UNIXTIME(ue.timecreated + $newhirewindow, '%Y-%m-%d'), NOW()) + 1
                 WHEN rcc.timecompleted IS NULL AND cc.timecompleted IS NULL
-                    THEN DATEDIFF(FROM_UNIXTIME(ue.timecreated + $initialtrainingwindow, '%Y-%m-%d'), NOW()) +1
+                    THEN DATEDIFF(FROM_UNIXTIME(ue.timecreated + $initialtrainingwindow, '%Y-%m-%d'), NOW()) + 1
                 ELSE DATEDIFF(
                     FROM_UNIXTIME(GREATEST(COALESCE(cc.timecompleted, 0), COALESCE(rcc.timecompleted, 0)) + CAST(rcfg.value AS UNSIGNED) + $recompletionwindow, '%Y-%m-%d'),
-                    NOW() +1
+                    NOW() + 1
                 )
             END AS days_til_due
 
